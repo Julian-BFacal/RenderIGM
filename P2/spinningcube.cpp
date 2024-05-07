@@ -66,20 +66,43 @@ int main()
     osg::ref_ptr<osg::Group> root = new osg::Group;
     root->addChild(pat);
 
+    // Create another cube
+	osg::ref_ptr<osg::Box> box2 = new osg::Box(osg::Vec3(0,0,0),1.0f); // Positioned at (3,0,0)
+	osg::ref_ptr<osg::ShapeDrawable> boxDrawable2 = new osg::ShapeDrawable(box2);
+	osg::ref_ptr<osg::Geode> geode2 = new osg::Geode;
+	geode2->addDrawable(boxDrawable2);
+
+	osg::ref_ptr<osg::MatrixTransform> mt2 = new osg::MatrixTransform;
+	mt2->setMatrix(osg::Matrix::translate(3,0,0)); // Offset the cube by its center
+	mt2->addChild(geode2);
+
+	osg::ref_ptr<osg::PositionAttitudeTransform> pat2 = new osg::PositionAttitudeTransform();
+	pat2->addChild(mt2);
+	pat2->setPivotPoint(osg::Vec3(3,0,0));
+	pat2->setPosition(osg::Vec3(3,0,0));
+	pat2->setUpdateCallback(new RotateCB(1,0.5,0));
+
+	root->addChild(pat2);
+
 	// Create a color array
 	osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
-
+	osg::ref_ptr<osg::Vec4Array> colors2 = new osg::Vec4Array;
 
 	// Get the Geometry of the Geodes
 	osg::Geometry* geometry = dynamic_cast<osg::Geometry*>(geode->getDrawable(0));
+	osg::Geometry* geometry2 = dynamic_cast<osg::Geometry*>(geode2->getDrawable(0));
 
 	// Add a color to the array
 	colors->push_back(osg::Vec4(1.0f, 1.0f, 1.0f, 1.0f)); // White color
+	colors2->push_back(osg::Vec4(0.0f, 0.0f, 1.0f, 1.0f)); // Blue color
 	// Set the color array on the Geometry
 	geometry->setColorArray(colors);
+	geometry2->setColorArray(colors2);
 
 	// Set the color binding to use the first color of the array for all vertices
 	geometry->setColorBinding(osg::Geometry::BIND_OVERALL);
+	geometry2->setColorBinding(osg::Geometry::BIND_OVERALL);
+
 
 	// Create a StateSet at the root node
 	osg::StateSet* stateSet = root->getOrCreateStateSet();
