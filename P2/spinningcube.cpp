@@ -3,6 +3,8 @@
 #include <osgViewer/Viewer>
 #include <osgGA/TrackballManipulator>
 #include <osg/PositionAttitudeTransform>
+#include <osg/Texture2D>
+#include <osgDB/ReadFile>
 
 // Create a callback to rotate the cube
 class RotateCB : public osg::NodeCallback
@@ -65,6 +67,19 @@ int main()
 
     osg::ref_ptr<osg::Group> root = new osg::Group;
     root->addChild(pat);
+
+    // Crear una textura
+	osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D;
+
+	// Cargar una imagen en la textura
+	osg::ref_ptr<osg::Image> image = osgDB::readImageFile("texture.jpg");
+	texture->setImage(image);
+
+	// Crear un StateSet para el Geode
+	osg::ref_ptr<osg::StateSet> stateset = geode->getOrCreateStateSet();
+
+	// Aplicar la textura al Geode
+	stateset->setTextureAttributeAndModes(0, texture, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
     // Create another cube
 	osg::ref_ptr<osg::Box> box2 = new osg::Box(osg::Vec3(0,0,0),1.0f); // Positioned at (3,0,0)
