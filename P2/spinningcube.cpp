@@ -110,8 +110,52 @@ int main()
 	// Enable lighting
 	stateSet->setMode(GL_LIGHTING, osg::StateAttribute::ON);
 
+	// Enable lighting
+	stateSet->setMode(GL_LIGHTING, osg::StateAttribute::ON);
+
 	// Enable light number 0
 	stateSet->setMode(GL_LIGHT0, osg::StateAttribute::ON);
+
+	// Crear un nuevo cubo luz
+	osg::ref_ptr<osg::Box> boxL = new osg::Box(osg::Vec3(0, 0, 0), 0.1f);
+	osg::ref_ptr<osg::ShapeDrawable> boxDrawableL = new osg::ShapeDrawable(boxL);
+	osg::ref_ptr<osg::Geode> boxGeodeL = new osg::Geode;
+	boxGeodeL->addDrawable(boxDrawableL.get());
+
+	// Crear un nodo de transformación de posición y actitud
+	osg::ref_ptr<osg::PositionAttitudeTransform> boxPatL = new osg::PositionAttitudeTransform;
+
+	// Convert the Vec4 to a Vec3
+	osg::Vec3 lightPosition3(osg::Vec3(0,0,0));
+
+	// Set the position of the cube to match the light position
+	boxPatL->setPosition(lightPosition3);
+
+	// Agregar el Geode al nodo de transformación de posición y actitud
+	boxPatL->addChild(boxGeodeL.get());
+
+    // Enable light number 1
+	stateSet->setMode(GL_LIGHT1, osg::StateAttribute::ON);
+
+	// Crear una luz
+	osg::ref_ptr<osg::Light> light = new osg::Light;
+
+    // Configurar la luz
+	light->setLightNum(1); // Número de la luz, debe ser único
+	light->setPosition(osg::Vec4(0.0, 0.0, 0.0, 1.0)); // Posición de la luz, el último parámetro es 1.0 para una luz puntual
+	light->setDiffuse(osg::Vec4(1.0, 0.0, 0.5, 1.0)); // Color difuso de la luz
+	light->setSpecular(osg::Vec4(1.0, 0.0, 0.5, 1.0)); // Color especular de la luz
+
+	// Crear un nodo de luz y agregar la luz al nodo
+	osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+	lightSource->setLight(light);
+
+	// Agregar el nodo de luz al nodo raíz
+	boxPatL->addChild(lightSource);
+
+
+	// Agregar el nodo de transformación de posición y actitud al nodo raíz
+	root->addChild(boxPatL.get());
 
     osgViewer::Viewer viewer;
     viewer.setSceneData(root);
