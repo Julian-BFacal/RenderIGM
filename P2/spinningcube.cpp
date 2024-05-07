@@ -1,87 +1,100 @@
-#include <osg/Group>
 #include <osg/MatrixTransform>
-#include <osg/Geode>
 #include <osg/ShapeDrawable>
-#include <osg/Material>
-#include <osg/Light>
-#include <osg/LightSource>
 #include <osgViewer/Viewer>
 #include <osgGA/TrackballManipulator>
+#include <osg/PositionAttitudeTransform>
 
-int main(int argc, char* argv[])
+// Create a callback to rotate the cube
+class RotateCB : public osg::NodeCallback
 {
-    // Crear un geode para contener nuestra forma
-    osg::ref_ptr<osg::Geode> geode = new osg::Geode();
+	public: float rotationx=0;
+	public: float rotationy=0;
+	public: float rotationz=0;
+	private: osg::ref_ptr<osg::AnimationPathCallback> animationCallback;
 
-    // Crear una forma de cubo
-    osg::ref_ptr<osg::Box> cube = new osg::Box(osg::Vec3(), 1.0f);
+	public: RotateCB(float x, float y, float z){
+		rotationx=x;
+		rotationy=y;
+		rotationz=z;
 
-    // Crear un drawable para mostrar el cubo
-    osg::ref_ptr<osg::ShapeDrawable> shapeDrawable = new osg::ShapeDrawable(cube);
+		// Crear una ruta de animación
+		osg::ref_ptr<osg::AnimationPath> animationPath = new osg::AnimationPath;
+		animationPath->setLoopMode(osg::AnimationPath::LOOP);
 
-    // Agregar material al cubo
-    osg::ref_ptr<osg::Material> material = new osg::Material;
-    material->setDiffuse(osg::Material::FRONT_AND_BACK, osg::Vec4(1.0f, 0.0f, 0.0f, 1.0f)); // Establecer el color del material
+		// Add control points to the animation path
+		double animationTime = 0.0;
+		for (int i = 0; i < 10; ++i) { // 10 random positions
+			osg::Vec3 position(-2.0 + rand() % 5, 
+							-2.0 + rand() % 5, 
+							-2.0 + rand() % 5); // Generate a random position
+			animationPath->insert(animationTime, osg::AnimationPath::ControlPoint(position));
+			animationTime += (rand() % 6)+1; // Move to the next position after 5 seconds
+		}
 
-    // Asociar el material con el drawable
-    shapeDrawable->getOrCreateStateSet()->setAttribute(material.get());
+		// Create an animation path callback and add it to the position transform node
+		animationCallback = new osg::AnimationPathCallback(animationPath);
+	}
+public:
+	virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
+	{
+		animationCallback.get()->operator()(node,nv);
 
-    // Adjuntar el drawable al geode
-    geode->addDrawable(shapeDrawable);
+		osg::PositionAttitudeTransform* pat = dynamic_cast<osg::PositionAttitudeTransform*>(node);
+		double angle = osg::PI * ( (osg::Timer::instance()->time_s()) / 10.0 );
+		pat->setAttitude(osg::Quat(angle, osg::Vec3(rotationx, rotationy, rotationz)));
+		traverse(node,nv);
+	}
+};
 
-    // Crear una transformación de matriz para contener el geode
-    osg::ref_ptr<osg::MatrixTransform> root = new osg::MatrixTransform;
+int main()
+{
+    osg::ref_ptr<osg::Box> box = new osg::Box(osg::Vec3(0,0,0),1.0f);
+    osg::ref_ptr<osg::ShapeDrawable> boxDrawable = new osg::ShapeDrawable(box);
+    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
+    geode->addDrawable(boxDrawable);
 
-    // Agregar el geode a la transformación de matriz
-    root->addChild(geode);
+	osg::ref_ptr<osg::MatrixTransform> mt = new osg::MatrixTransform;
+	mt->setMatrix(osg::Matrix::translate(0,0,0)); // Offset the cube by its center
+	mt->addChild(geode);
 
-    // Establecer la posición inicial del cubo
-    osg::Matrix initialMatrix;
-    initialMatrix.makeTranslate(0.0f, 0.0f, 5.0f);
-    root->setMatrix(initialMatrix);
+    osg::ref_ptr<osg::PositionAttitudeTransform> pat = new osg::PositionAttitudeTransform();
+	
 
-    // Crear un visor
+    pat->addChild(mt);
+    pat->setUpdateCallback(new RotateCB(0.2,0,1));
+
+    osg::ref_ptr<osg::Group> root = new osg::Group;
+    root->addChild(pat);
+
+	// Create a color array
+	osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
+
+
+	// Get the Geometry of the Geodes
+	osg::Geometry* geometry = dynamic_cast<osg::Geometry*>(geode->getDrawable(0));
+
+	// Add a color to the array
+	colors->push_back(osg::Vec4(1.0f, 1.0f, 1.0f, 1.0f)); // White color
+	// Set the color array on the Geometry
+	geometry->setColorArray(colors);
+
+	// Set the color binding to use the first color of the array for all vertices
+	geometry->setColorBinding(osg::Geometry::BIND_OVERALL);
+
+	// Create a StateSet at the root node
+	osg::StateSet* stateSet = root->getOrCreateStateSet();
+
+	// Enable lighting
+	stateSet->setMode(GL_LIGHTING, osg::StateAttribute::ON);
+
+	// Enable light number 0
+	stateSet->setMode(GL_LIGHT0, osg::StateAttribute::ON);
+
     osgViewer::Viewer viewer;
-
-    // Configurar la manipulación de la vista para permitir el arrastre
-    viewer.setCameraManipulator(new osgGA::TrackballManipulator); // Utilizamos el TrackballManipulator
-
-    // Establecer los datos de la escena
     viewer.setSceneData(root);
-
-    // Crear una luz predeterminada
-    osg::ref_ptr<osg::Light> light = new osg::Light;
-    light->setLightNum(0); // Establecer el número de luz
-    light->setPosition(osg::Vec4(2.0f, 0.0f, 1.0f, 0.0f)); // Establecer la posición de la luz
-    light->setAmbient(osg::Vec4(0.2f, 0.2f, 0.2f, 1.0f)); // Establecer el color de la luz ambiental
-    light->setDiffuse(osg::Vec4(0.8f, 0.8f, 0.8f, 1.0f)); // Establecer el color de la luz difusa
-    light->setSpecular(osg::Vec4(1.0f, 1.0f, 1.0f, 1.0f)); // Establecer el color de la luz especular
-
-    // Crear una fuente de luz y agregar la luz a ella
-    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
-    lightSource->setLight(light);
-
-    // Agregar la fuente de luz al nodo raíz
-    root->addChild(lightSource);
-
-    // Obtener el tiempo inicial para hacer girar el cubo
-    double startTime = osg::Timer::instance()->tick();
-
-    while (!viewer.done())
-    {
-        // Obtener el tiempo actual
-        double currentTime = osg::Timer::instance()->delta_s(startTime, osg::Timer::instance()->tick());
-
-        // Obtener la matriz de transformación del nodo Geode
-        osg::Matrix rotationMatrix;
-        rotationMatrix.makeRotate(osg::Quat(currentTime, osg::Vec3(2.0, 1.5, 1.0))); // Rotación sobre el eje Z con el tiempo
-
-        // Aplicar la rotación a la matriz de transformación del nodo MatrixTransform
-        root->setMatrix(rotationMatrix);
-
-        // Actualizar la escena
-        viewer.frame();
-    }
-    return 0;
+    viewer.setCameraManipulator(new osgGA::TrackballManipulator);
+    viewer.run();
 }
+
+/*  This code creates a cube and adds it to a PositionAttitudeTransform node. The RotateCB class is a callback that rotates the cube around the z-axis. The rotation speed is set to one full rotation every 10 seconds. The callback is added to the PositionAttitudeTransform node, which applies the rotation to the cube. The cube is then added to the scene and displayed in the viewer. */
 
